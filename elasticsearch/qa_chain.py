@@ -13,9 +13,6 @@
 # api_key = "sk-3c00405e530947c0b54a068886d308d4"
 # base_url = "https://api.deepseek.com/v1"
 # model = "deepseek-chat"
-api_key = "sk-kS6vHrWPHrysTVEvm3yPwvuHdZNy3CIIoJlGTXNGOgKusvk0"
-model = "gpt-5"
-base_url = "https://jeniya.cn/v1"
 
 # 替换为自己模型或 API
 # embedding = OpenAIEmbeddings(api_key=api_key, base_url=base_url)
@@ -44,16 +41,31 @@ from langchain.chains import RetrievalQA
 from langchain.callbacks.manager import CallbackManager
 from langchain.callbacks import StdOutCallbackHandler
 from langchain.prompts import PromptTemplate
+from langchain_community.embeddings import DashScopeEmbeddings
+# from langchain_community.chat_models import ChatDashScope
 
+
+# api_key = "sk-kS6vHrWPHrysTVEvm3yPwvuHdZNy3CIIoJlGTXNGOgKusvk0"
+# model = "gpt-5"
+# base_url = "https://jeniya.cn/v1"
+# embeddings_model="text-embedding-3-large"
+
+api_key = "sk-5fc0520d085341d780bf6a9969f08661"
+model = "qwen-plus"
+base_url = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+embeddings_model="text-embedding-v4"
 
 handler = StdOutCallbackHandler()
 manager = CallbackManager([handler])
 
-embeddings = OpenAIEmbeddings(base_url=base_url,
-                              api_key=api_key,
-                              model="text-embedding-3-large")
+# embeddings = OpenAIEmbeddings(base_url=base_url,
+#                               api_key=api_key,
+#                               model=embeddings_model)
 
-
+embeddings = DashScopeEmbeddings(
+    model="text-embedding-v4",
+    dashscope_api_key=api_key
+)
 
 
 
@@ -122,8 +134,12 @@ llm = ChatOpenAI(
     api_key=api_key,
     base_url=base_url,
      callback_manager=manager,
-    model_name="gpt-5-mini",   temperature=0)
-
+    model_name=model,   temperature=0)
+# llm = ChatDashScope(
+#     model_name="qwen-plus",
+#     dashscope_api_key=api_key,
+#     temperature=0
+# )
 # ==============================
 # 4️⃣ 创建 RetrievalQA 链
 # ==============================

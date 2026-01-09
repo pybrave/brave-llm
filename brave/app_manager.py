@@ -31,6 +31,9 @@ from brave.api.executor.base import JobExecutor
 from brave.api.executor.local_executor import LocalExecutor
 from py2neo import Graph
 
+from brave.microbe.llm.tool_manager import ToolManager
+from brave.microbe.llm.tool_register import register_tools
+
 class AppManager:
     @inject
     def __init__(
@@ -44,7 +47,8 @@ class AppManager:
         workflow_event_router:WorkflowEventRouter=Provide[AppContainer.workflow_event_router],
         watchfile_event_router:WatchFileEvenetRouter=Provide[AppContainer.watchfile_event_router],
         job_executor:JobExecutor=Provide[AppContainer.job_executor_selector],
-        config = Provide[AppContainer.config]   
+        config = Provide[AppContainer.config],
+        tool_manager:ToolManager=Provide[AppContainer.tool_manager]
         
         ):
         self.config = config
@@ -59,6 +63,7 @@ class AppManager:
         self.watchfile_event_router = watchfile_event_router
         self.job_executor = job_executor
         self.config = config
+        self.tool_manager = tool_manager
         self.tasks = []
         # 预先声明属性，后面启动时赋值
         self.file_watcher = None
@@ -169,6 +174,9 @@ class AppManager:
         with get_engine().begin() as conn: 
             await namespace_service.init_db(conn)
             await project_service.init_db(conn)
+        
+        register_tools(self.tool_manager)
+
 
         
 

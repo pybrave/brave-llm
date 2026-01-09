@@ -203,7 +203,13 @@ const App: React.FC = () => {
                 zh_CN: "主页",
                 en_US: "Home"
             }
-        }, {
+        },{
+            key:"/llm",
+            label:{ 
+                zh_CN: "LLM",
+                en_US: "LLM"
+            }
+        } ,{
             key: `/entity-relation`,
             label: {
                 zh_CN: "Microbial Graph",

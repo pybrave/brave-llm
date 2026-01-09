@@ -70,6 +70,7 @@ const DigitalTwins = lazy(()=>import("@/pages/digital-twins"))
 const ContainerPage = lazy(() => import('@/pages/container'));
 const Files = lazy(() => import('@/pages/files'));
 const InteractiveTools = lazy(() => import('@/pages/interactive-tools'));
+const LLM = lazy(() => import('@/pages/llm'));
 import axios from "axios";
 import { Skeleton } from "antd";
 import { useDispatch } from "react-redux";
@@ -358,6 +359,9 @@ if (appType == "index") {
         },{
             path: "/digital-twins",
             element: <DigitalTwins />
+        },{
+            path:"/llm",
+            element:<LLM />
         },
         
         
@@ -420,6 +424,7 @@ if (appType == "index") {
 
 import { listPipeline } from '@/api/pipeline'
 import path from "path";
+import { el } from "@faker-js/faker";
 const RenderRouter: FC = () => {
     // const [routes, setRoutes] = useState<RouteObject[] | null>([]);
     // const dispatch = useDispatch()

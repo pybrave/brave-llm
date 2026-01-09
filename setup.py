@@ -29,7 +29,8 @@ setup(
         "lxml",
         "cryptography",
         "openai",
-        "oss2"
+        "oss2",
+        "dashscope"
         ],
     entry_points={
         "console_scripts": [

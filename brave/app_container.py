@@ -23,6 +23,7 @@ from brave.api.executor.docker_excutor import DockerExecutor
 from brave.api.executor.k8s_executor import K8sExecutor
 from brave.api.executor.slurm_executor import SlurmExecutor
 from brave.api.executor.local_executor import LocalExecutor
+from brave.microbe.llm.tool_manager import ToolManager
 class AppContainer(containers.DeclarativeContainer):
     config = providers.Configuration()
 
@@ -95,7 +96,9 @@ class AppContainer(containers.DeclarativeContainer):
         k8s=k8s_executor,
         slurm=slurm_executor
     )
-        
+    
+    tool_manager = providers.Singleton(ToolManager)
+    
     # job_executor  =providers.Singleton(get_executor,"local")
 
     # App manager with injected dependencies

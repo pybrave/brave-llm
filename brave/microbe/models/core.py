@@ -7,6 +7,7 @@ from brave.api.config.db import meta
 from sqlalchemy import Text,Index,UniqueConstraint
 from sqlalchemy.dialects.mysql import LONGTEXT
 
+from sqlalchemy import Text,Index,JSON
 
 
 t_taxonomy = Table(
@@ -215,4 +216,25 @@ t_association  = Table(
     # Column("participates_in_pathway", String(255)),
     # Column("produces_metabolite", String(255)),
     # Column("regulates_gene", String(255)),
+)
+
+
+
+t_chat_history = Table(
+    "chat_history",
+    meta,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("user_id", String(255)),
+    Column("session_id", String(255)),
+    Column("chat_history_id", String(255)),
+    Column("project_id", String(255)),
+    Column("biz_type", String(255)),
+    Column("biz_id", String(255)),
+    Column("thought_chain", JSON),
+    Column("role", String(16)),   # "user" / "assistant"
+    Column("content", Text().with_variant(LONGTEXT(), "mysql")),
+    Column("system_prompt", Text().with_variant(LONGTEXT(), "mysql")),
+    Column("user_prompt", Text().with_variant(LONGTEXT(), "mysql")),
+    Column("created_at", DateTime, default=datetime.now),
+    Column("updated_at", DateTime, onupdate=datetime.now)
 )

@@ -40,7 +40,7 @@ from fastapi.middleware.cors import CORSMiddleware
 container = AppContainer()
 # container.config.executer_type.from_env("EXECUTER_TYPE","local")    
 
-container.wire(modules=["brave.api.routes"], packages=["brave.api.routes","brave.api.handlers"])
+container.wire(modules=["brave.api.routes"], packages=["brave.microbe.routes","brave.api.routes","brave.api.handlers"])
 # 
 
 @asynccontextmanager

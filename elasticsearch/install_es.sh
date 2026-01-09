@@ -1,4 +1,4 @@
-docker run --rm    \
+docker run --rm  -d  \
     --name elasticsearch   \
     -p 9200:9200   -p 9300:9300   \
     -e discovery.type=single-node   \
@@ -8,7 +8,7 @@ docker run --rm    \
      docker.elastic.co/elasticsearch/elasticsearch:9.2.1
 
 
-docker run --rm    \
+docker run --rm  -d  \
     --name kibana   \
     -p 5601:5601   \
     -e ELASTICSEARCH_HOSTS=http://192.168.3.63:9200   \

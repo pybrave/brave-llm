@@ -1,15 +1,25 @@
 from langchain_openai import OpenAIEmbeddings
 import uuid
 from elasticsearch import Elasticsearch
+from langchain_community.embeddings import DashScopeEmbeddings
+
 es = Elasticsearch("http://localhost:9200")
 index_name = "microbiome-knowledge"
-api_key = "sk-kS6vHrWPHrysTVEvm3yPwvuHdZNy3CIIoJlGTXNGOgKusvk0"
-base_url = "https://jeniya.cn/v1"
-emb = OpenAIEmbeddings(
-    base_url=base_url,
-    api_key=api_key,
-    model="text-embedding-3-large"
+# api_key = "sk-kS6vHrWPHrysTVEvm3yPwvuHdZNy3CIIoJlGTXNGOgKusvk0"
+# base_url = "https://jeniya.cn/v1"
+# emb = OpenAIEmbeddings(
+#     base_url=base_url,
+#     api_key=api_key,
+#     model="text-embedding-3-large"
+# )
+api_key = "sk-5fc0520d085341d780bf6a9969f08661"
+emb = DashScopeEmbeddings(
+    model="text-embedding-v4",
+    dashscope_api_key=api_key
 )
+
+
+
 
 # docs = [
 #     "Gut microbiome affects metabolism.",

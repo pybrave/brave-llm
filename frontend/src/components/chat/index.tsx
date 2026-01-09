@@ -5,6 +5,7 @@ import { createStyles } from 'antd-style';
 import React, { FC, lazy, Suspense, useEffect, useRef, useState } from 'react';
 import markdownit from 'markdown-it';
 import { useSelector } from 'react-redux';
+import { on } from 'events';
 
 const sleep = () => new Promise((resolve) => setTimeout(resolve, 1000));
 
@@ -14,7 +15,7 @@ const roles: GetProp<typeof Bubble.List, 'roles'> = {
     avatar: { icon: <UserOutlined />, style: { background: '#fde3cf' } },
     typing: { step: 5, interval: 20 },
     style: {
-      maxWidth: 600,
+      // maxWidth: 600,
     }, footer: (
       <div style={{ display: 'flex' }}>
         <Button type="text" size="small" icon={<ReloadOutlined />} />
@@ -25,7 +26,7 @@ const roles: GetProp<typeof Bubble.List, 'roles'> = {
     ),
   },
   local: {
-    placement: 'end',
+    placement: 'start',
     avatar: { icon: <UserOutlined />, style: { background: '#87d068' } },
   },
 };
@@ -174,39 +175,110 @@ const App2: FC<any> = ({ questions = MOCK_QUESTIONS }) => {
 
   const [inputValue, setInputValue] = useState('');
 
+  // const [agent] = useXAgent<string, { message: string }, string>({
+  //   request: async ({ message }, { onSuccess, onUpdate, onError }) => {
+  //     try {
+  //       const res = await fetch(
+  //         // `${baseURL}/brave-api/llm/chat/stream`,
+  //         `${baseURL}/brave-api/llm/rag-stream`,
+  //         {
+  //           method: "POST",
+  //           headers: { "Content-Type": "application/json" },
+  //           body: JSON.stringify({ message }),
+  //         }
+  //       );
+
+  //       if (!res.body) throw new Error("No response body");
+
+  //       const reader = res.body.getReader();
+  //       const decoder = new TextDecoder();
+  //       let reply = "";
+
+  //       while (true) {
+  //         const { value, done } = await reader.read();
+  //         if (done) break;
+  //         if (value) {
+  //           // 逐段解码
+  //           const chunk = decoder.decode(value, { stream: true });
+  //           reply += chunk;
+
+  //           // 可以在这里实时更新 UI，例如：
+  //           // 每次收到 chunk 就更新 Bubble 内容
+  //           onUpdate(reply);
+  //         }
+  //       }
+
+  //       // 最终完成
+  //       onSuccess([reply]);
+  //     } catch (err) {
+  //       console.error("Request failed:", err);
+  //       onError(err as Error);
+  //     }
+  //   },
+  // });
+  type RAGResult = {
+  answer: string;
+  docs: { id: string; content: string }[];
+};
+
   const [agent] = useXAgent<string, { message: string }, string>({
     request: async ({ message }, { onSuccess, onUpdate, onError }) => {
       try {
-        const res = await fetch(
-          `${baseURL}/brave-api/llm/chat/stream`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ message }),
-          }
-        );
+        const res = await fetch(`${baseURL}/brave-api/llm/rag-stream`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message }),
+        });
 
         if (!res.body) throw new Error("No response body");
 
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
+        // let answerBuffer = "";   // buffer 聚合 answer token
+        let docs: Array<{ id: string; content: string }> = [];
         let reply = "";
-
         while (true) {
           const { value, done } = await reader.read();
           if (done) break;
-          if (value) {
-            // 逐段解码
-            const chunk = decoder.decode(value, { stream: true });
-            reply += chunk;
+          if (!value) continue;
 
-            // 可以在这里实时更新 UI，例如：
-            // 每次收到 chunk 就更新 Bubble 内容
-            onUpdate(reply);
+          const chunk = decoder.decode(value, { stream: true });
+          // SSE 通常以 data: 开头
+          const lines = chunk.split("\n").filter((line) => line.startsWith("data:"));
+          for (const line of lines) {
+            try {
+              const jsonStr = line.replace(/^data:\s*/, "");
+              const obj = JSON.parse(jsonStr);
+
+              if (obj.type === "doc") {
+                // docs.push({ id: obj.id, content: obj.content });
+                // docs.push(obj.content);
+                reply += `"Document:", ${obj.content} \n`;
+                // console.log();
+                onUpdate(reply);
+                // onUpdate(`\n\n[Document ${obj.id}]: ${reply}\n\n`);
+              } else if (obj.type === "answer") {
+                // token 累积到 buffer
+                // answerBuffer += obj.content;
+                reply += obj.content;
+                onUpdate(reply);
+                // // 可以选择每句分隔符（如句号）实时更新
+                // if (obj.content.endsWith("。") || obj.content.endsWith("\n")) {
+                //   onUpdate(answerBuffer);
+                //   answerBuffer = ""; // 重置 buffer
+                // }
+              }
+            } catch (err) {
+              console.warn("Invalid SSE chunk:", line, err);
+            }
           }
         }
 
-        // 最终完成
+        // // 最终 flush
+        // if (answerBuffer.length > 0) {
+        //   onUpdate(answerBuffer);
+        // }
+
         onSuccess([reply]);
       } catch (err) {
         console.error("Request failed:", err);
@@ -214,7 +286,6 @@ const App2: FC<any> = ({ questions = MOCK_QUESTIONS }) => {
       }
     },
   });
-
 
   const { onRequest, messages } = useXChat({
     agent,
@@ -451,7 +522,7 @@ export default App2;
 
 
 const AIComp = lazy(() => import('./ai'));
-export const AI:FC<any> = () => {
+export const AI: FC<any> = () => {
 
   return <Suspense fallback={<Skeleton active></Skeleton>}>
     <AIComp />

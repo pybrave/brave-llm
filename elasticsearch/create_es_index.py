@@ -2,7 +2,7 @@ from elasticsearch import Elasticsearch
 
 es = Elasticsearch("http://localhost:9200")
 
-index_name = "microbiome-knowledge"
+index_name = "microbiome-knowledge1"
 
 index_body = {
     "mappings": {
@@ -10,7 +10,7 @@ index_body = {
             "content": {"type": "text"},
             "embedding": {
                 "type": "dense_vector",
-                "dims": 3072  # text-embedding-3-large 维度
+                "dims": 1024  # text-embedding-3-large 维度
             }
         }
     }

@@ -383,7 +383,7 @@ async def websocket_endpoint(
     query_params = ws.query_params
 
     conn = await manager.connect(ws)
-    handler:StreamingToolHandler = StreamingToolHandler( "deepseek-chat",tool_manager)
+    handler:StreamingToolHandler = StreamingToolHandler( "qwen-plus",tool_manager)
     # queue = asyncio.Queue()
     # async def audio_emit(data):
     #     if queue:

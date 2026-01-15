@@ -1,30 +1,55 @@
 
 from brave.microbe.llm.tool_manager import ToolManager
+from brave.microbe.llm.tools.format_tools import format_tools
 from brave.microbe.llm.tools.log_tools import get_error_log
+from brave.microbe.llm.tools.rag_tools import rag_tools
 
 from .tools import component_tools
 
 def register_tools(tool_manager: ToolManager):
     """注册所有工具到 ToolManager"""
     pass
+    tool_manager.register(
+        name="rag_tools",
+        func=rag_tools,
+        description="查询与用户输入内容相关的信息",
+        parameters={
+            "type": "object",
+            "properties": {
+                "keywords": {
+                    "type": "string",
+                    "description": "搜索的关键字",
+                },
+
+            },
+            "required": ["keywords"],
+        },
+    )
+
     # tool_manager.register(
-    #     name="get_error_log",
-    #     func=get_error_log,
-    #     description="获取指定业务的错误日志",
-    #     # parameters={
-    #     #     # "type": "object",
-    #     #     # "properties": {
-    #     #     #     # "biz_id": {
-    #     #     #     #     "type": "string",
-    #     #     #     #     "description": "业务ID，比如工作流ID或任务ID",
-    #     #     #     # },
-    #     #     #     # "biz_type": {
-    #     #     #     #     "type": "string",
-    #     #     #     #     "description": "业务类型，比如'workflow'或'task'",
-    #     #     #     # },
-    #     #     # },
-    #     #     # "required": ["biz_id", "biz_type"],
-    #     # },
+    #     name="format_tools",
+    #     func=format_tools,
+    #     description="来源引用格式化工具",
+    #     parameters={
+    #         "type": "object",
+    #         "properties": {
+    #             "citation": {
+    #                 "type": "array",
+    #                 "description": "list of citation information",
+    #                 "items": {
+    #                     "id": {
+    #                         "type": "string",
+    #                         "description": "文章ID"
+    #                     },
+    #                     "sentence": {
+    #                         "type": "string",
+    #                         "description": "引用的句子"
+    #                     }
+    #                 }
+    #             }
+    #         },
+    #         "required": ["citation"],
+    #     },
     # )
 
     # tool_manager.register(

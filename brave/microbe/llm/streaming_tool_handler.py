@@ -498,7 +498,18 @@ class StreamingToolHandler:
              if queue:
                 msg = format(event,data)
                 await queue.put(msg)
-   
+        thinking_dict = {}
+        async def emit_thinking(step,status, msg):
+            if status!="done":
+                thinking_dict[step] = msg
+                # msg = {'key':'step1','title':'正在理解问题','content': 'LLM started'}
+                thinking_list = [ item for item in thinking_dict.values()]
+                await emit("thinking",{"status":status,"title":msg["title"],"content":thinking_list})
+            else:
+                thinking_list = [ item for item in thinking_dict.values()]
+                await emit("thinking",{"status":status,"title":"思考完成","content":thinking_list})
+
+
         if is_tts:
             tts_service = TtsService(emit=emit)
     
@@ -508,8 +519,10 @@ class StreamingToolHandler:
             await emit("message",{'content': content})
             if is_tts:
                 await tts_service.speak(content)
+        
         fsm = CiteFSM()
-
+        rag_citation_dict = {}
+        currenct_citation_dict = {}
         # self.collector = ResultCollector(on_result=lambda r:emit_data(parse_result(r)))
         # self.collector = StreamingXMLParser(
         #     on_content=lambda text: emit("message", {"content": text}),
@@ -525,10 +538,10 @@ class StreamingToolHandler:
                 queue=queue,
             )
         
-        thought_chain_msg.append(content)
-        msg = {'title':'LLM started','content': 'LLM started'}
-        await emit("status",msg)
-        thought_chain_msg.append(msg)
+        # thought_chain_msg.append(content)
+        # msg = {'key':'step1','title':'正在理解问题','content': 'LLM started'}
+        await emit_thinking("step1","running",{'title':'正在理解问题','content': 'LLM started'})
+        # thought_chain_msg.append(msg)
         messages = [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": content},
@@ -603,7 +616,47 @@ class StreamingToolHandler:
                                         tts_out.append(ev.text)
                                     elif ev.type == "CITE":
                                         # counter += 1  
-                                        out.append(f"#ref{ev.raw_cite}")
+                                        cite_nums = ev.raw_cite.split(",")
+                                        for num in cite_nums:
+                                            num = str(num.strip())
+                                            if currenct_citation_dict.get(num) is None:
+                                                citation = rag_citation_dict.get(num)
+                                                if citation:
+                                                    currenct_citation_dict[num] ={
+                                                        "chunk_id": num,
+                                                        "title": citation["title"],
+                                                        "number":len(currenct_citation_dict)+1
+                                                    }
+                                        await emit("citation", {"content": currenct_citation_dict})
+
+
+                                        def circled_number(n: int) -> str:
+                                            """
+                                            返回 Unicode 圆圈数字 1-20
+                                            """
+                                            if 1 <= n <= 20:
+                                                return chr(0x2460 + n - 1)
+                                            else:
+                                                raise ValueError("只支持 1~20")
+                                        display_num_list = []
+                                        chunk_id_list = []
+                                        for num in cite_nums:
+                                            num = num.strip()
+                                            if num in currenct_citation_dict:
+                                                display_num = currenct_citation_dict[num]["number"]
+                                                display_num_list.append(circled_number(display_num))
+                                                chunk_id_list.append(num)
+
+
+                                            
+                                        if len(display_num_list)>0:
+                                            display_num_str = ",".join(display_num_list)
+                                            chunk_id_str = ",".join(chunk_id_list)
+                                            out.append(f"[{display_num_str}](cite:{chunk_id_str})")
+
+
+
+                                        # out.append(f"#ref{ev.raw_cite}")
                                         print(f"Citation found: {ev.raw_cite}")     
 
                             if out:
@@ -631,10 +684,10 @@ class StreamingToolHandler:
                             # msg = f"Tool call {event.name} with arguments {event.arguments}."
                             # yield f"event: message\ndata: {json.dumps({'content': msg})}\n\n"
                             print(f"Tool call {event.name}: {event.arguments}.")
-                            msg = {'title':f"Tool Call: {event.name}",'content':f"Tool call {event.name} with arguments {event.arguments}."}
-                            # yield f"event:status\ndata:{json.dumps(msg)}\n\n"
-                            await emit("status",msg)
-                            thought_chain_msg.append(msg)
+                            # msg = {'title':f"Tool Call: {event.name}",'content':f"Tool call {event.name} with arguments {event.arguments}."}
+                            # # yield f"event:status\ndata:{json.dumps(msg)}\n\n"
+                            # await emit("thinking",msg)
+                            # thought_chain_msg.append(msg)
                         elif event.type == "error":
                             await emit("message",{'content': f"[Error] {event.error}"})
                         await asyncio.sleep(0)  # 让事件循环更流畅
@@ -644,6 +697,9 @@ class StreamingToolHandler:
                     # ---------- ② 如果没有 tool call → 完成  ----------
                     if not pending_tool_calls:
                         break
+                    else:
+                        await emit_thinking("step1","running",{'title':'理解问题完成','content': 'LLM started'})
+
                     tool_results = []
                     if pending_tool_calls: 
                         for tc in pending_tool_calls:
@@ -651,14 +707,49 @@ class StreamingToolHandler:
                             if idx in  tool_calls:
                                 args = json.loads(tc.arguments)
                                 
-                                result = await self.tool_manager.run(tc.name, {**args})
-                                
-                                tool_results.append({
-                                    "role": "tool",
-                                    "name": tc.name,
-                                    "tool_call_id":  tool_calls[idx]["id"],
-                                    "content": result
-                                })
+                                result = await self.tool_manager.run(tc.name, emit_thinking,{**args})
+                                if tc.name=="rag_tools":
+                                    # 处理 RAG 工具的特殊输出格式
+                                    #  {
+                                    #     "data":[
+                                    #         {
+                                    #             "chunk_id": "12345679",
+                                    #             "content": content1,
+                                    #             "title": "低剂量阿司匹林对PI3K突变结直肠癌的影响研究综述"
+                                    #         },{
+                                    #             "chunk_id": "89454131",
+                                    #             "content": contenet2,
+                                    #             "title": "SAKK 41/13试验：辅助阿司匹林在PIK3CA突变结肠癌中的疗效分析"
+                                    #         }
+                                    #     ]
+                                    # }
+
+                                    data = result["data"]
+                                    data_str = ""
+                                    for item in data:
+                                        chunk_id = item["chunk_id"]
+                                        content = item["content"]
+                                        if chunk_id not in rag_citation_dict:
+                                            rag_citation_dict[chunk_id] = item
+
+                                        # title = item.get("title","")
+                                        data_str += f"chunk_id: {chunk_id}\n{content}\n\n"
+                                    tool_results.append({
+                                        "role": "tool",
+                                        "name": tc.name,
+                                        "tool_call_id":  tool_calls[idx]["id"],
+                                        "content": data_str
+                                    })
+                                    print(f"RAG tool result: {data_str}")
+                                else:
+                                    tool_results.append({
+                                        "role": "tool",
+                                        "name": tc.name,
+                                        "tool_call_id":  tool_calls[idx]["id"],
+                                        "content": result
+                                    })
+                        
+                        await emit_thinking("step2","done",{'title':"工具调用结束",'content': 'LLM started'})
 
                     # 将 tool 结果加入消息，继续下一轮
                         # ---------- ④ 下一轮 messages ----------

@@ -33,7 +33,7 @@ class ToolManager:
         """ 给 DeepSeek 的 tools 参数 """
         return [tool["schema"] for tool in self.tools.values()]
 
-    async def run(self, name: str, arguments: dict):
+    async def run(self, name: str, emit_thinking,arguments: dict):
         """真正执行工具"""
         tool = self.tools.get(name)
         if not tool:
@@ -44,5 +44,5 @@ class ToolManager:
             if "parameters" in arguments:
                 arguments = {**arguments["parameters"], **arguments}
                 del arguments["parameters"]
-            return await func(arguments)
-        return func(**arguments)
+            return await func(emit_thinking,arguments)
+        return func(emit_thinking,**arguments)

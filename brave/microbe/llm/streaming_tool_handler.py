@@ -17,6 +17,7 @@ from brave.microbe.llm.tts_speech_synthesizer import TtsService
 from brave.microbe.llm.tts import tts_stream
 from brave.microbe.schemas.chat_history import CreateChatHistory
 from brave.microbe.service import chat_history_service
+from brave.microbe.user.user_info import UserInfoTool
 from brave.microbe.utils.lock_llm import BizProjectLock
 from .schemas.llm import ChatRequest
 from brave.api.config.db import get_engine
@@ -67,6 +68,9 @@ N 是块ID, 同一个句子多个引用用逗号分割直接跟在后面, 引用
 例如:
 阿司匹林是一种常用的非甾体抗炎药，具有镇痛、解热和抗炎作用。它通过抑制环氧化酶（COX）酶的活性，减少前列腺素的合成，从而发挥其药理作用。@cite(12345679,888888)
 
+注意: 如果用户询问与健康话题无关的问题, 不需要调用Tools, 请礼貌拒绝回答
+
+{user_info}
 """
 system_prompt5 = """
 
@@ -492,22 +496,25 @@ class StreamingToolHandler:
         #     await emit("audio",{'content':audio})
         # return resp.audio_base64
         
-    async def run_(self, req, queue,conn,is_tts,format):
-       
+    async def run_(self, req:ChatRequest, queue,conn,is_tts,format):
         async def emit(event,data):
              if queue:
                 msg = format(event,data)
                 await queue.put(msg)
         thinking_dict = {}
+        thought_chain_dict = {}
         async def emit_thinking(step,status, msg):
+            print(msg)
             if status!="done":
                 thinking_dict[step] = msg
                 # msg = {'key':'step1','title':'正在理解问题','content': 'LLM started'}
                 thinking_list = [ item for item in thinking_dict.values()]
-                await emit("thinking",{"status":status,"title":msg["title"],"content":thinking_list})
+                thought_chain_dict.update({"status":status,"title":msg["title"],"content":thinking_list})
+                await emit("thinking",thought_chain_dict)
             else:
                 thinking_list = [ item for item in thinking_dict.values()]
-                await emit("thinking",{"status":status,"title":"思考完成","content":thinking_list})
+                thought_chain_dict.update({"status":status,"title":msg["title"],"content":thinking_list})
+                await emit("thinking",thought_chain_dict)
 
 
         if is_tts:
@@ -529,9 +536,10 @@ class StreamingToolHandler:
         #     on_result=lambda result: print(result)
         # )
             # asyncio.create_task(tts_service.emit_audio(emit))
-        
-        thought_chain_msg = []
-        content = await llm_service.build_prompt(
+        await emit_thinking("step1","running",{'title':'正在理解问题','content': 'LLM started'})
+
+        # thought_chain_msg = []
+        user_prompt_content,system_prompt_content = await llm_service.build_prompt(
                 req,
                 system_prompt,
                 template,
@@ -540,15 +548,19 @@ class StreamingToolHandler:
         
         # thought_chain_msg.append(content)
         # msg = {'key':'step1','title':'正在理解问题','content': 'LLM started'}
-        await emit_thinking("step1","running",{'title':'正在理解问题','content': 'LLM started'})
+
+        
         # thought_chain_msg.append(msg)
         messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": content},
+            {"role": "system", "content": system_prompt_content},
+            {"role": "user", "content": user_prompt_content},
         ]
         tools = self.tool_manager.get_schemas()
         assistant_message = ""  # 最终累积模型输出
         current_messages = list(messages)
+
+        number_of_tools_call =0
+
         try:
             while True and conn.alive:
                 pending_tool_calls = []
@@ -696,8 +708,12 @@ class StreamingToolHandler:
                     
                     # ---------- ② 如果没有 tool call → 完成  ----------
                     if not pending_tool_calls:
+                        if number_of_tools_call ==0:
+                            await emit_thinking("step1","running",{'title':'理解问题完成','content': 'LLM started'})
+                        await emit_thinking("finish","done",{'title':"思考完成",'content': 'LLM started'})
                         break
                     else:
+                        number_of_tools_call= number_of_tools_call+1
                         await emit_thinking("step1","running",{'title':'理解问题完成','content': 'LLM started'})
 
                     tool_results = []
@@ -749,7 +765,7 @@ class StreamingToolHandler:
                                         "content": result
                                     })
                         
-                        await emit_thinking("step2","done",{'title':"工具调用结束",'content': 'LLM started'})
+                        await emit_thinking("finish","done",{'title':"工具调用结束",'content': 'LLM started'})
 
                     # 将 tool 结果加入消息，继续下一轮
                         # ---------- ④ 下一轮 messages ----------
@@ -787,14 +803,14 @@ class StreamingToolHandler:
             with get_engine().begin() as conn:
                 
                 create_chatHistory = CreateChatHistory(
-                    user_id=None,
-                    session_id=None,
-                    biz_id=None,
-                    biz_type=None,
+                    user_id=req.user_id,
+                    session_id=req.session_id,
                     role="assistant",
                     content=assistant_message,
-                    project_id=None,
-                    thought_chain=thought_chain_msg 
+                    thought_chain=thought_chain_dict,
+                    citations=currenct_citation_dict,
+                    user_prompt=user_prompt_content,
+                    system_prompt=system_prompt_content,
                 )
                 chat_history_service.insert_chat_history(conn, create_chatHistory)
             print(f"assistant_message: {assistant_message}")

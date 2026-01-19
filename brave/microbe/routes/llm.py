@@ -1,4 +1,5 @@
 import asyncio
+import uuid
 from fastapi import APIRouter, FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.params import Depends
 from pydantic import BaseModel
@@ -406,19 +407,11 @@ async def websocket_endpoint(
 
 
     
-    
-    
-            # queue = asyncio.Queue()
-            # llm_task = asyncio.create_task(
-            #  self.run_(req, queue,biz_id,biz_type, project_id)
-            # )
-            # while True:
-            #     try:
-            #         msg = await asyncio.wait_for(queue.get(), timeout=0.05)
-            #         yield msg
-            #     except asyncio.TimeoutError:
-            #         if llm_task.done():
-            #             break
+    token = query_params.get("token")
+    user_id = token
+    session_id = query_params.get("conversation_id","")
+    if session_id=="":
+        session_id = str(uuid.uuid4())
     asr_service = None
     is_tts = False
     if query_params.get("is_tts") is not None:
@@ -430,7 +423,7 @@ async def websocket_endpoint(
             # 1️⃣ 文本消息
             if message.get("text") is not None:
                 data = message["text"]
-                req = ChatRequest(message=data)
+                req = ChatRequest(message=data,user_id=user_id, session_id=session_id)
                 await handler.run_(req, conn.queue,conn,is_tts,format)
                 break
 
@@ -455,7 +448,7 @@ async def websocket_endpoint(
                             "event": "asr_result",
                             "data": {"content": data}
                         })
-                        req = ChatRequest(message=data)
+                        req = ChatRequest(message=data, user_id=user_id, session_id=session_id)
                         await handler.run_(req, conn.queue,conn,is_tts,format)
                       
                     else:

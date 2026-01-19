@@ -6,9 +6,12 @@ from brave.microbe.service import  chat_history_service
 from brave.api.service import analysis_result_service
 import brave.api.service.pipeline as  pipeline_service
 from brave.api.config.db import get_engine
+from brave.microbe.user.user_info import UserInfoTool
 
 
 async def build_prompt(req: ChatRequest, system_prompt: str, template: str,queue) -> str:
+    user_info_tool = UserInfoTool()
+
     async def emit(msg):
         if queue:
             await queue.put(msg)
@@ -18,6 +21,8 @@ async def build_prompt(req: ChatRequest, system_prompt: str, template: str,queue
     # context =""
     # code =""
     # data =""
+    user_info = user_info_tool.get_user_info_by_id(req.user_id)
+
     with get_engine().begin() as conn:
     #     if biz_type=="tools":
     #         find_relation = pipeline_service.find_relation_component_prompt_by_id(conn, biz_id)
@@ -107,8 +112,11 @@ async def build_prompt(req: ChatRequest, system_prompt: str, template: str,queue
     #                     await emit({"title":f"Fetch Analysis Script","content":f"Fetching analysis {analysis_name} script..."})
 
         
-        content = template.format(
+        user_prompt_content = template.format(
                                 question=req.message)
+        system_prompt_content = system_prompt.format(
+                                user_info=user_info) 
+
         create_chatHistory = CreateChatHistory(
                 user_id=None,
                 session_id=None,
@@ -122,6 +130,6 @@ async def build_prompt(req: ChatRequest, system_prompt: str, template: str,queue
             # user_prompt=content,
         if req.is_save_prompt:
             create_chatHistory.system_prompt=system_prompt
-            create_chatHistory.user_prompt=content
+            create_chatHistory.user_prompt=user_prompt_content
         chat_history_service.insert_chat_history(conn, create_chatHistory)
-    return content
+    return user_prompt_content,system_prompt_content

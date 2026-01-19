@@ -7,5 +7,7 @@ class ChatRequest(BaseModel):
     biz_type: str = None
     project_id: str = None 
     is_save_prompt: bool = False
+    user_id: str = None
+    session_id: str = None
     # model_name: str = "qwen-plus"
     model_name: str = "deepseek-chat"

@@ -12,17 +12,18 @@ class CreateChatHistory(BaseModel):
     project_id: Optional[str] = None
     system_prompt: Optional[str] = None
     user_prompt: Optional[str] = None
-    thought_chain: Optional[list] = None
+    citations: Optional[dict] = None
+    thought_chain: Optional[dict] = None
 
 
 class QueryChatHistory(BaseModel):
     chat_history_id: Optional[str] = None
     user_id: Optional[str] = None
     session_id: Optional[str] = None
-    biz_id: Optional[str] = None
-    biz_type: Optional[str] = None
     role: Optional[str] = None
-    project_id: Optional[str] = None
+    page_number: Optional[int] = 1
+    page_size: Optional[int] = 10
+
 
 class ClearChatHistory(BaseModel):
     biz_id: Optional[str] = None

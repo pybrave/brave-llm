@@ -231,6 +231,7 @@ t_chat_history = Table(
     Column("biz_type", String(255)),
     Column("biz_id", String(255)),
     Column("thought_chain", JSON),
+    Column("citations", JSON),
     Column("role", String(16)),   # "user" / "assistant"
     Column("content", Text().with_variant(LONGTEXT(), "mysql")),
     Column("system_prompt", Text().with_variant(LONGTEXT(), "mysql")),

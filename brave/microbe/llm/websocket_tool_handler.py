@@ -41,7 +41,7 @@ class WSConnection:
 
     async def sender(self):
         try:
-            while self.alive:
+            while True:
                 msg = await self.queue.get()
                 if msg is None:
                     break
@@ -70,6 +70,8 @@ class WSConnection:
         # 等 sender 退出
         if self._sender_task:
             await self._sender_task
+
+        await self.queue.join()
 
         await self._safe_ws_close()
 
